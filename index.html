@@ -2,7 +2,6 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <!-- Meta tags pra forçar o comportamento de App Nativo -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -10,27 +9,26 @@
     
     <title>StreetDex MVP</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
-        /* Reset agressivo pra matar o "efeito elástico" dos navegadores mobile */
         body, html { 
             margin: 0; padding: 0; height: 100%; 
             background-color: #0a0a0a; color: white; 
             overflow: hidden; font-family: sans-serif;
-            overscroll-behavior-y: none; /* Mata o pull-to-refresh */
-            -webkit-user-select: none; /* Impede selecionar texto do app */
+            overscroll-behavior-y: none; 
+            -webkit-user-select: none; 
             user-select: none;
         }
         
         .hidden-screen { display: none !important; }
         
-        /* Utilitários Neon e Glassmorphism */
         .glass { background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .neon-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.6); border-color: #a855f7; }
         .neon-green { box-shadow: 0 0 15px rgba(132, 204, 22, 0.6); border-color: #84cc16; }
@@ -40,16 +38,19 @@
         #map { width: 100%; height: 100%; z-index: 1; }
         .ui-layer { z-index: 10; position: absolute; }
 
-        /* Hack do Dark Mode pro mapa OpenStreetMap */
         .leaflet-layer {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
 
-        /* Animação do Splash */
         #splash-screen {
             z-index: 9999;
             transition: opacity 0.6s ease-out, transform 0.8s ease-in;
         }
+        
+        #login-screen {
+            z-index: 9998;
+        }
+
         .splash-glitch {
             animation: pulse-neon 1.5s infinite alternate;
         }
@@ -62,42 +63,44 @@
 </head>
 <body>
 
-    <!-- TELA ZERO: SPLASH SCREEN (Animação de Entrada) -->
     <div id="splash-screen" class="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
         <h1 class="text-5xl font-black tracking-[0.2em] text-neon-purple splash-glitch">STREETDEX</h1>
-        <p class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">CARREGANDO MAPA URBANO...</p>
+        <p class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">SINTONIZANDO SATÉLITES...</p>
     </div>
 
-    <!-- TELA 1: MAPA -->
-    <div id="screen-map" class="w-full h-full relative">
+    <div id="login-screen" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-4xl font-black tracking-[0.2em] text-neon-purple mb-8">STREETDEX</h1>
+        <p class="text-gray-400 mb-10 text-sm">Identifique-se para acessar o mapa urbano.</p>
+        <button id="btn-login" class="glass neon-green text-white font-bold py-4 px-8 rounded-full uppercase tracking-wider active:scale-95 transition-transform w-full max-w-xs flex items-center justify-center gap-3">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Entrar com Google
+        </button>
+    </div>
+
+    <div id="screen-map" class="hidden-screen w-full h-full relative">
         <div id="map"></div>
         
-        <!-- Header HUD -->
         <div class="ui-layer top-8 left-4 right-4 flex justify-between items-center glass rounded-xl p-3">
             <div>
                 <h1 class="text-xl font-bold tracking-wider text-neon-purple">STREETDEX</h1>
-                <p class="text-xs text-gray-400">Crew: <span class="text-neon-green font-bold">Acid Vandalz</span></p>
+                <p class="text-xs text-gray-400">Hunter: <span id="user-display-name" class="text-neon-green font-bold">...</span></p>
             </div>
             <div class="text-right">
-                <p class="text-sm font-bold">EXP: 2.450</p>
-                <p class="text-xs text-gray-400">Rank: Writer</p>
+                <p class="text-sm font-bold">Artes: <span id="art-counter">0</span></p>
             </div>
         </div>
 
-        <!-- Botão de Scan -->
         <div class="ui-layer bottom-10 left-0 right-0 flex justify-center">
-            <button id="btn-open-scanner" class="glass neon-green text-white font-bold py-4 px-8 rounded-full text-lg uppercase tracking-widest active:scale-95 transition-transform">
-                Capturar Arte
+            <button id="btn-open-scanner" class="glass neon-green text-white font-bold py-4 px-8 rounded-full text-lg uppercase tracking-widest active:scale-95 transition-transform shadow-lg">
+                Escanear Arte
             </button>
         </div>
     </div>
 
-    <!-- TELA 2: SCANNER (CÂMERA) -->
     <div id="screen-scanner" class="hidden-screen w-full h-full relative bg-black">
         <video id="camera-feed" class="w-full h-full object-cover" autoplay playsinline></video>
         <canvas id="camera-canvas" class="hidden"></canvas>
         
-        <!-- Overlay da Câmera -->
         <div class="ui-layer top-0 left-0 w-full h-full pointer-events-none border-8 border-transparent box-border" style="border-image: linear-gradient(to bottom, #a855f7, transparent) 1;"></div>
         <div class="ui-layer top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed border-[#84cc16] pointer-events-none opacity-50"></div>
 
@@ -108,82 +111,140 @@
         </div>
     </div>
 
-    <!-- TELA 3: RESULTADO (CARTA GERADA) -->
     <div id="screen-card" class="hidden-screen w-full h-full relative bg-[#0a0a0a] flex flex-col items-center justify-center p-6">
         <div class="glass neon-purple rounded-2xl w-full max-w-sm overflow-hidden flex flex-col mt-8">
-            <!-- Imagem Capturada -->
             <div class="h-64 w-full bg-gray-800 relative">
                 <img id="card-image" src="" alt="Captured Art" class="w-full h-full object-cover" />
-                <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">NOVO REGISTRO</div>
+                <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">SCAN CONCLUÍDO</div>
             </div>
             
-            <!-- Atributos -->
             <div class="p-5 flex flex-col gap-3">
-                <h2 id="card-title" class="text-2xl font-black text-white uppercase tracking-wide">Desconhecido</h2>
+                <input type="text" id="art-name-input" placeholder="NOMEIE A ARTE..." maxlength="40" class="w-full bg-transparent border-b-2 border-gray-600 focus:border-[#a855f7] text-white outline-none py-2 text-xl font-black text-center uppercase tracking-wide placeholder-gray-600 transition-colors">
                 
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2 mt-2">
                     <span class="text-gray-400 text-sm">Estilo</span>
                     <span id="card-style" class="font-bold text-neon-purple">Pixo</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span class="text-gray-400 text-sm">Raridade</span>
-                    <span id="card-rarity" class="font-bold text-yellow-400">Épica</span>
+                    <span class="text-gray-400 text-sm">Exploração</span>
+                    <span id="card-exploration" class="font-bold text-white text-right text-xs max-w-[120px]">Calculando...</span>
                 </div>
                 <div class="flex justify-between items-center pb-2">
-                    <span class="text-gray-400 text-sm">Cores</span>
-                    <span id="card-colors" class="font-bold">Monocromático</span>
+                    <span class="text-gray-400 text-sm">Raridade</span>
+                    <span id="card-rarity" class="font-bold text-yellow-400">Épica</span>
                 </div>
             </div>
         </div>
 
-        <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform">
-            Adicionar ao Mapa
+        <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <span id="save-btn-text">Registrar no Mapa</span>
         </button>
     </div>
 
     <script>
-        // CONTROLE DA SPLASH SCREEN (Animação de Entrada)
-        window.addEventListener('load', () => {
-            const splash = document.getElementById('splash-screen');
-            setTimeout(() => {
-                splash.style.opacity = '0';
-                splash.style.transform = 'scale(1.1)'; 
-                
-                setTimeout(() => splash.remove(), 600);
-            }, 2000);
-        });
+        // ==========================================
+        // 1. CONFIGURAÇÃO DO FIREBASE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyARte5ndyTFJoWysfeCguX75cjyyBN7Kx4",
+            authDomain: "streetdex-mvp.firebaseapp.com",
+            projectId: "streetdex-mvp",
+            storageBucket: "streetdex-mvp.firebasestorage.app",
+            messagingSenderId: "547402311678",
+            appId: "1:547402311678:web:a9d444190123a55db502af"
+        };
 
-        // Configurações e Variáveis Globais
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ==========================================
+        // SEGURANÇA: sanitização de texto vindo do usuário
+        // ==========================================
+        // Nunca insira strings vindas de usuários (nome da arte, nome do autor,
+        // etc.) direto em innerHTML sem escapar — isso abre brecha para XSS
+        // armazenado (um usuário malicioso poderia injetar <script>/<img onerror>
+        // no campo "nome" e esse código rodaria no navegador de todo mundo que
+        // visse o pino no mapa).
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str ?? "");
+            return div.innerHTML;
+        }
+
+        // Limita tamanho e remove caracteres de controle antes de salvar no banco
+        function sanitizeArtName(raw) {
+            const cleaned = String(raw || "")
+                .replace(/[\u0000-\u001F\u007F<>]/g, "") // remove tags e caracteres de controle
+                .trim()
+                .slice(0, 40);
+            return cleaned || "Arte Desconhecida";
+        }
+
+        // ==========================================
+        // VARIÁVEIS GLOBAIS
+        // ==========================================
         let map, userMarker, userCoords;
         let videoStream;
+        let registeredArts = []; 
+        let currentUser = null;
+        let pendingBase64Image = "";
         
         const screenMap = document.getElementById('screen-map');
         const screenScanner = document.getElementById('screen-scanner');
         const screenCard = document.getElementById('screen-card');
+        const loginScreen = document.getElementById('login-screen');
         const video = document.getElementById('camera-feed');
         const canvas = document.getElementById('camera-canvas');
         const cardImage = document.getElementById('card-image');
+        const artNameInput = document.getElementById('art-name-input');
+        const artCounter = document.getElementById('art-counter');
 
-        // INICIALIZAÇÃO DO MAPA
+        // ==========================================
+        // LÓGICA DE LOGIN E INICIALIZAÇÃO
+        // ==========================================
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('splash-screen');
+            setTimeout(() => {
+                splash.style.opacity = '0';
+                setTimeout(() => splash.remove(), 600);
+            }, 1500);
+
+            // Observador de estado de autenticação
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-display-name').innerText = user.displayName.split(' ')[0]; // Pega só o primeiro nome
+                    loginScreen.classList.add('hidden-screen');
+                    screenMap.classList.remove('hidden-screen');
+                    if(!map) initMap();
+                    fetchArtsFromDatabase();
+                } else {
+                    loginScreen.classList.remove('hidden-screen');
+                    screenMap.classList.add('hidden-screen');
+                }
+            });
+        });
+
+        document.getElementById('btn-login').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => alert("Erro no login: " + err.message));
+        });
+
+        // ==========================================
+        // MAPA E DADOS DO FIRESTORE
+        // ==========================================
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([-23.5505, -46.6333], 15);
-            
-            // OpenStreetMap padrão (o CSS filter inverte a cor no style ali em cima)
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
-
-            // Mock de Turf Wars (Polígonos de dominação)
-            L.polygon([[-23.548, -46.635], [-23.545, -46.630], [-23.552, -46.628]], { color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.3 }).addTo(map).bindPopup("Território: Neon Skulls");
-            L.polygon([[-23.555, -46.638], [-23.552, -46.635], [-23.555, -46.630]], { color: '#84cc16', fillColor: '#84cc16', fillOpacity: 0.3 }).addTo(map).bindPopup("Território: Acid Vandalz (Sua Crew)");
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
 
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition((pos) => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
                     if (!userMarker) {
                         const userIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#84cc16; width:15px; height:15px; border-radius:50%; box-shadow: 0 0 10px #84cc16; border: 2px solid white;'></div>", iconSize: [15, 15] });
-                        userMarker = L.marker(userCoords, {icon: userIcon}).addTo(map);
+                        userMarker = L.marker(userCoords, {icon: userIcon, zIndexOffset: 1000}).addTo(map);
                         map.setView(userCoords, 16);
                     } else {
                         userMarker.setLatLng(userCoords);
@@ -192,7 +253,48 @@
             }
         }
 
+        // Puxa as artes salvas do Firebase
+        function fetchArtsFromDatabase() {
+            db.collection("arts").onSnapshot((snapshot) => {
+                registeredArts = [];
+                artCounter.innerText = snapshot.size;
+                
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+
+                    // Validação básica dos dados vindos do banco antes de usar
+                    if (typeof data.lat !== 'number' || typeof data.lng !== 'number' ||
+                        Math.abs(data.lat) > 90 || Math.abs(data.lng) > 180) {
+                        return; // ignora documento com coordenadas inválidas
+                    }
+
+                    registeredArts.push(data);
+
+                    // Coloca o pino no mapa
+                    const markerIcon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
+
+                    // IMPORTANTE: nome e authorName vêm de outros usuários -> sempre escapar
+                    const safeNome = escapeHTML(data.nome);
+                    const safeAuthor = escapeHTML(data.authorName);
+                    // imageBase64 só é aceito se realmente for uma data URL de imagem
+                    const safeImage = (typeof data.imageBase64 === 'string' && data.imageBase64.startsWith('data:image/'))
+                        ? data.imageBase64
+                        : '';
+
+                    const popupEl = document.createElement('div');
+                    popupEl.innerHTML = `<b>${safeNome}</b><br>Capturado por ${safeAuthor}` +
+                        (safeImage ? `<br><img src="${safeImage}" style="width:100%; margin-top:5px; border-radius:5px;">` : '');
+
+                    L.marker([data.lat, data.lng], {icon: markerIcon})
+                        .addTo(map)
+                        .bindPopup(popupEl);
+                });
+            });
+        }
+
+        // ==========================================
         // CÂMERA E SCANNER
+        // ==========================================
         async function startCamera() {
             screenMap.classList.add('hidden-screen');
             screenScanner.classList.remove('hidden-screen');
@@ -200,7 +302,7 @@
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
                 video.srcObject = videoStream;
             } catch (err) {
-                alert("Erro na câmera. Você precisa estar rodando via HTTPS ou no localhost.");
+                alert("Erro na câmera. Use HTTPS.");
                 closeCamera();
             }
         }
@@ -212,60 +314,106 @@
         }
 
         function takePhoto() {
+            // Desenha no canvas e comprime brutalmente pra caber no Firestore (Qualidade 0.4)
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            cardImage.src = canvas.toDataURL('image/jpeg');
+            pendingBase64Image = canvas.toDataURL('image/jpeg', 0.4); 
+            
+            cardImage.src = pendingBase64Image;
             closeCamera();
-            generateMockCard();
+            processHumanFactor();
         }
 
-        // IA MOCKADA (Geração da Carta)
-        function generateMockCard() {
+        // ==========================================
+        // LÓGICA DO FATOR HUMANO E RARIDADE
+        // ==========================================
+        function processHumanFactor() {
             screenMap.classList.add('hidden-screen');
             screenCard.classList.remove('hidden-screen');
+            artNameInput.value = ""; 
             
-            const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural"];
-            const raridades = [
-                { nome: "Comum", cor: "text-gray-400" },
-                { nome: "Rara", cor: "text-blue-400" },
-                { nome: "Épica", cor: "text-yellow-400" },
-                { nome: "Lendária", cor: "text-neon-purple text-neon-purple" }
-            ];
-            const paletas = ["Monocromático", "Ácido (Neon)", "Quente (Fogo)", "Frio (Gelo)", "Contraste Alto"];
-
-            const e = estilos[Math.floor(Math.random() * estilos.length)];
-            const r = raridades[Math.floor(Math.random() * raridades.length)];
-            const p = paletas[Math.floor(Math.random() * paletas.length)];
-
-            document.getElementById('card-title').innerText = `${e} Desconhecido`;
-            document.getElementById('card-style').innerText = e;
+            const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural", "Tag"];
+            document.getElementById('card-style').innerText = estilos[Math.floor(Math.random() * estilos.length)];
             
-            const elRarity = document.getElementById('card-rarity');
-            elRarity.innerText = r.nome;
-            elRarity.className = `font-bold ${r.cor}`;
+            let minDistance = Infinity;
             
-            document.getElementById('card-colors').innerText = p;
-        }
-
-        // SALVAR NO MAPA
-        function saveCardToMap() {
-            if (userCoords) {
-                const markerIcon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
-                L.marker(userCoords, {icon: markerIcon}).addTo(map).bindPopup(`<b>Nova Arte Registrada!</b><br>Capturada por você.`);
+            if (userCoords && registeredArts.length > 0) {
+                registeredArts.forEach(art => {
+                    const dist = map.distance(userCoords, [art.lat, art.lng]);
+                    if (dist < minDistance) minDistance = dist;
+                });
             }
-            screenCard.classList.add('hidden-screen');
-            screenMap.classList.remove('hidden-screen');
+
+            let raridade, cor, exploTexto;
+
+            if (registeredArts.length === 0 || minDistance > 50) {
+                raridade = "Lendária"; cor = "text-neon-purple"; exploTexto = "Área Virgem (Primeira Descoberta!)";
+            } else if (minDistance > 20) {
+                raridade = "Épica"; cor = "text-yellow-400"; exploTexto = "Pouco Mapeada (Bônus de Busca)";
+            } else if (minDistance > 5) {
+                raridade = "Rara"; cor = "text-blue-400"; exploTexto = "Local Conhecido";
+            } else {
+                raridade = "Comum"; cor = "text-gray-400"; exploTexto = "Pico Saturado (Muitos Scans)";
+            }
+
+            document.getElementById('card-exploration').innerText = exploTexto;
+            const elRarity = document.getElementById('card-rarity');
+            elRarity.innerText = raridade;
+            elRarity.className = `font-bold ${cor}`;
         }
 
-        // EVENT LISTENERS
+        // ==========================================
+        // SALVAR NO FIRESTORE
+        // ==========================================
+        function saveCardToMap() {
+            if (!userCoords || !currentUser) return;
+            
+            const btnText = document.getElementById('save-btn-text');
+            btnText.innerText = "Salvando...";
+            
+            const artName = sanitizeArtName(artNameInput.value);
+            const artStyle = document.getElementById('card-style').innerText;
+            const artRarity = document.getElementById('card-rarity').innerText;
+
+            // Sanidade básica antes de gravar (o backend/regras do Firestore
+            // também precisam validar isso — nunca confie só no cliente)
+            if (!pendingBase64Image.startsWith('data:image/')) {
+                alert("Imagem inválida. Tente escanear novamente.");
+                btnText.innerText = "Registrar no Mapa";
+                return;
+            }
+
+            // Objeto pra mandar pro banco
+            const newArt = {
+                nome: artName,
+                estilo: artStyle,
+                raridade: artRarity,
+                lat: userCoords[0],
+                lng: userCoords[1],
+                imageBase64: pendingBase64Image,
+                authorId: currentUser.uid,
+                authorName: sanitizeArtName(currentUser.displayName || "Anônimo"),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            db.collection("arts").add(newArt)
+            .then(() => {
+                btnText.innerText = "Registrar no Mapa";
+                screenCard.classList.add('hidden-screen');
+                screenMap.classList.remove('hidden-screen');
+            })
+            .catch(error => {
+                alert("Erro ao salvar: " + error.message);
+                btnText.innerText = "Registrar no Mapa";
+            });
+        }
+
+        // Eventos
         document.getElementById('btn-open-scanner').addEventListener('click', startCamera);
         document.getElementById('btn-close-scanner').addEventListener('click', closeCamera);
         document.getElementById('btn-take-photo').addEventListener('click', takePhoto);
         document.getElementById('btn-save-card').addEventListener('click', saveCardToMap);
-
-        // Iniciar
-        window.onload = initMap;
     </script>
 </body>
 </html>
