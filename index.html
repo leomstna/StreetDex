@@ -13,9 +13,14 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <!-- TensorFlow & NSFWJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.7.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.3.0/dist/nsfwjs.min.js"></script>
 
     <style>
         body, html { 
@@ -29,7 +34,7 @@
         
         .hidden-screen { display: none !important; }
         
-        .glass { background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .neon-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.6); border-color: #a855f7; }
         .neon-green { box-shadow: 0 0 15px rgba(132, 204, 22, 0.6); border-color: #84cc16; }
         .text-neon-purple { text-shadow: 0 0 12px rgba(168, 85, 247, 0.9); color: #c084fc; }
@@ -37,97 +42,124 @@
         
         #map { width: 100%; height: 100%; z-index: 1; }
         .ui-layer { z-index: 10; position: absolute; }
-
-        .leaflet-layer {
-            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-
-        #splash-screen {
-            z-index: 9999;
-            transition: opacity 0.6s ease-out, transform 0.8s ease-in;
-        }
+        .leaflet-layer { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
         
-        #login-screen {
-            z-index: 9998;
-        }
-
-        .splash-glitch {
-            animation: pulse-neon 1.5s infinite alternate;
-        }
+        #splash-screen { z-index: 9999; transition: opacity 0.6s ease-out, transform 0.8s ease-in; }
+        #login-screen { z-index: 9998; }
+        .splash-glitch { animation: pulse-neon 1.5s infinite alternate; }
 
         @keyframes pulse-neon {
             0% { text-shadow: 0 0 5px #a855f7, 0 0 10px #a855f7; transform: scale(1); }
             100% { text-shadow: 0 0 20px #a855f7, 0 0 40px #a855f7; transform: scale(1.02); }
         }
+
+        /* Nav Bar Bottom */
+        .bottom-nav { z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-item { display: flex; flex-direction: column; items-center; justify-content: center; color: #6b7280; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; transition: color 0.2s;}
+        .nav-item.active { color: #a3e635; text-shadow: 0 0 8px rgba(132, 204, 22, 0.8); }
+        .scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </style>
 </head>
 <body>
 
+    <!-- TELA ZERO: SPLASH -->
     <div id="splash-screen" class="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
         <h1 class="text-5xl font-black tracking-[0.2em] text-neon-purple splash-glitch">STREETDEX</h1>
-        <p class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">SINTONIZANDO SATÉLITES...</p>
+        <p id="splash-text" class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">SINTONIZANDO SATÉLITES...</p>
     </div>
 
+    <!-- TELA LOGIN -->
     <div id="login-screen" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
         <h1 class="text-4xl font-black tracking-[0.2em] text-neon-purple mb-8">STREETDEX</h1>
-        <p class="text-gray-400 mb-10 text-sm">Identifique-se para acessar o mapa urbano.</p>
+        <p class="text-gray-400 mb-10 text-sm">Identifique-se para acessar a rede urbana.</p>
         <button id="btn-login" class="glass neon-green text-white font-bold py-4 px-8 rounded-full uppercase tracking-wider active:scale-95 transition-transform w-full max-w-xs flex items-center justify-center gap-3">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
             Entrar com Google
         </button>
     </div>
 
-    <div id="screen-map" class="hidden-screen w-full h-full relative">
-        <div id="map"></div>
+    <!-- MAIN APP CONTAINER (Com Nav Bar) -->
+    <div id="main-app" class="hidden-screen w-full h-full relative flex flex-col">
         
-        <div class="ui-layer top-8 left-4 right-4 flex justify-between items-center glass rounded-xl p-3">
-            <div>
-                <h1 class="text-xl font-bold tracking-wider text-neon-purple">STREETDEX</h1>
-                <p class="text-xs text-gray-400">Hunter: <span id="user-display-name" class="text-neon-green font-bold">...</span></p>
+        <!-- VIEWS -->
+        <div class="flex-1 relative overflow-hidden">
+            
+            <!-- VIEW: MAPA -->
+            <div id="view-map" class="w-full h-full absolute inset-0">
+                <div id="map"></div>
+                <div class="ui-layer top-8 left-4 right-4 flex justify-between items-center glass rounded-xl p-3">
+                    <div>
+                        <h1 class="text-xl font-bold tracking-wider text-neon-purple">STREETDEX</h1>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold">Total: <span id="art-counter">0</span></p>
+                    </div>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-sm font-bold">Artes: <span id="art-counter">0</span></p>
+
+            <!-- VIEW: FEED GLOBAL -->
+            <div id="view-feed" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
+                <h2 class="text-2xl font-black text-neon-purple uppercase mt-8 mb-4 tracking-widest text-center">Feed Global</h2>
+                <div id="feed-container" class="flex flex-col gap-6">
+                    <!-- Cards injetados via JS -->
+                </div>
             </div>
+
+            <!-- VIEW: PERFIL / GALERIA -->
+            <div id="view-profile" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
+                <div class="flex flex-col items-center mt-10 mb-8">
+                    <div class="w-24 h-24 rounded-full bg-gray-800 border-2 border-[#a855f7] neon-purple mb-4 overflow-hidden">
+                        <img id="profile-pic" src="" alt="Avatar" class="w-full h-full object-cover">
+                    </div>
+                    <h2 id="profile-name" class="text-2xl font-black text-white uppercase tracking-wide">Hunter</h2>
+                    <button id="btn-edit-profile" class="mt-2 text-xs text-gray-400 underline uppercase">Editar Nome</button>
+                </div>
+                
+                <h3 class="text-lg font-bold text-neon-green border-b border-gray-800 pb-2 mb-4">Minhas Artes</h3>
+                <div id="gallery-grid" class="grid grid-cols-2 gap-3">
+                    <!-- Galeria injetada via JS -->
+                </div>
+            </div>
+
         </div>
 
-        <div class="ui-layer bottom-10 left-0 right-0 flex justify-center">
-            <button id="btn-open-scanner" class="glass neon-green text-white font-bold py-4 px-8 rounded-full text-lg uppercase tracking-widest active:scale-95 transition-transform shadow-lg">
-                Escanear Arte
-            </button>
+        <!-- BOTAO FLUTUANTE ESCANEAR -->
+        <button id="btn-open-scanner" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#0a0a0a] border-4 border-[#84cc16] neon-green text-white font-bold w-16 h-16 rounded-full flex items-center justify-center text-3xl pb-1 z-40 active:scale-90 transition-transform">
+            +
+        </button>
+
+        <!-- BOTTOM NAV BAR -->
+        <div class="bottom-nav w-full h-16 glass border-t border-gray-800 flex justify-around items-center px-2 z-50">
+            <button class="nav-item active flex-1 py-2" data-target="view-map">Mapa</button>
+            <button class="nav-item flex-1 py-2" data-target="view-feed">Feed</button>
+            <div class="w-16"></div> <!-- Espaço pro botão central -->
+            <button class="nav-item flex-1 py-2" data-target="view-profile">Perfil</button>
         </div>
     </div>
 
-    <div id="screen-scanner" class="hidden-screen w-full h-full relative bg-black">
+    <!-- TELA: SCANNER CÂMERA -->
+    <div id="screen-scanner" class="hidden-screen fixed inset-0 bg-black z-[9999]">
         <video id="camera-feed" class="w-full h-full object-cover" autoplay playsinline></video>
         <canvas id="camera-canvas" class="hidden"></canvas>
-        
         <div class="ui-layer top-0 left-0 w-full h-full pointer-events-none border-8 border-transparent box-border" style="border-image: linear-gradient(to bottom, #a855f7, transparent) 1;"></div>
         <div class="ui-layer top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed border-[#84cc16] pointer-events-none opacity-50"></div>
-
         <button id="btn-close-scanner" class="ui-layer top-10 left-6 glass rounded-full w-12 h-12 flex items-center justify-center font-bold text-2xl pb-1">&times;</button>
-
         <div class="ui-layer bottom-12 left-0 right-0 flex justify-center">
             <button id="btn-take-photo" class="w-20 h-20 bg-white rounded-full border-4 border-[#84cc16] neon-green active:scale-90 transition-transform"></button>
         </div>
     </div>
 
-    <div id="screen-card" class="hidden-screen w-full h-full relative bg-[#0a0a0a] flex flex-col items-center justify-center p-6">
-        <div class="glass neon-purple rounded-2xl w-full max-w-sm overflow-hidden flex flex-col mt-8">
+    <!-- TELA: RESULTADO (CARTA) -->
+    <div id="screen-card" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 z-[9999]">
+        <div class="glass neon-purple rounded-2xl w-full max-w-sm overflow-hidden flex flex-col mt-4">
             <div class="h-64 w-full bg-gray-800 relative">
-                <img id="card-image" src="" alt="Captured Art" class="w-full h-full object-cover" />
-                <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">SCAN CONCLUÍDO</div>
+                <img id="card-image" src="" class="w-full h-full object-cover" crossorigin="anonymous" />
+                <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">NOVA ARTE</div>
             </div>
-            
             <div class="p-5 flex flex-col gap-3">
-                <input type="text" id="art-name-input" placeholder="NOMEIE A ARTE..." maxlength="40" class="w-full bg-transparent border-b-2 border-gray-600 focus:border-[#a855f7] text-white outline-none py-2 text-xl font-black text-center uppercase tracking-wide placeholder-gray-600 transition-colors">
-                
+                <input type="text" id="art-name-input" placeholder="NOMEIE A ARTE..." maxlength="40" class="w-full bg-transparent border-b-2 border-gray-600 focus:border-[#a855f7] text-white outline-none py-2 text-xl font-black text-center uppercase tracking-wide placeholder-gray-600">
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2 mt-2">
                     <span class="text-gray-400 text-sm">Estilo</span>
                     <span id="card-style" class="font-bold text-neon-purple">Pixo</span>
-                </div>
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span class="text-gray-400 text-sm">Exploração</span>
-                    <span id="card-exploration" class="font-bold text-white text-right text-xs max-w-[120px]">Calculando...</span>
                 </div>
                 <div class="flex justify-between items-center pb-2">
                     <span class="text-gray-400 text-sm">Raridade</span>
@@ -135,15 +167,15 @@
                 </div>
             </div>
         </div>
-
-        <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform flex items-center justify-center gap-2">
-            <span id="save-btn-text">Registrar no Mapa</span>
+        <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform flex items-center justify-center">
+            <span id="save-btn-text">Analisar e Salvar</span>
         </button>
+        <button id="btn-cancel-card" class="mt-4 text-gray-500 underline text-sm uppercase">Descartar</button>
     </div>
 
     <script>
         // ==========================================
-        // 1. CONFIGURAÇÃO DO FIREBASE
+        // CONFIGURAÇÃO FIREBASE (SUAS CHAVES)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyARte5ndyTFJoWysfeCguX75cjyyBN7Kx4",
@@ -154,266 +186,279 @@
             appId: "1:547402311678:web:a9d444190123a55db502af"
         };
 
-        // Inicializa o Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
         // ==========================================
-        // SEGURANÇA: sanitização de texto vindo do usuário
-        // ==========================================
-        // Nunca insira strings vindas de usuários (nome da arte, nome do autor,
-        // etc.) direto em innerHTML sem escapar — isso abre brecha para XSS
-        // armazenado (um usuário malicioso poderia injetar <script>/<img onerror>
-        // no campo "nome" e esse código rodaria no navegador de todo mundo que
-        // visse o pino no mapa).
-        function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.textContent = String(str ?? "");
-            return div.innerHTML;
-        }
-
-        // Limita tamanho e remove caracteres de controle antes de salvar no banco
-        function sanitizeArtName(raw) {
-            const cleaned = String(raw || "")
-                .replace(/[\u0000-\u001F\u007F<>]/g, "") // remove tags e caracteres de controle
-                .trim()
-                .slice(0, 40);
-            return cleaned || "Arte Desconhecida";
-        }
-
-        // ==========================================
-        // VARIÁVEIS GLOBAIS
+        // VARIÁVEIS GLOBAIS E IA
         // ==========================================
         let map, userMarker, userCoords;
         let videoStream;
         let registeredArts = []; 
         let currentUser = null;
         let pendingBase64Image = "";
-        
-        const screenMap = document.getElementById('screen-map');
-        const screenScanner = document.getElementById('screen-scanner');
-        const screenCard = document.getElementById('screen-card');
-        const loginScreen = document.getElementById('login-screen');
-        const video = document.getElementById('camera-feed');
-        const canvas = document.getElementById('camera-canvas');
-        const cardImage = document.getElementById('card-image');
-        const artNameInput = document.getElementById('art-name-input');
-        const artCounter = document.getElementById('art-counter');
+        let nsfwModel = null;
+        let customDisplayName = "";
+
+        // Carregar IA Anti-NSFW
+        nsfwjs.load().then(model => {
+            nsfwModel = model;
+            document.getElementById('splash-text').innerText = "IA DE MODERAÇÃO PRONTA.";
+        });
+
+        // Utilidades de Segurança (Anti-XSS)
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str ?? "");
+            return div.innerHTML;
+        }
+
+        function sanitizeText(raw) {
+            return String(raw || "").replace(/[\u0000-\u001F\u007F<>]/g, "").trim().slice(0, 40) || "Desconhecido";
+        }
 
         // ==========================================
-        // LÓGICA DE LOGIN E INICIALIZAÇÃO
+        // LOGIN E INICIALIZAÇÃO
         // ==========================================
         window.addEventListener('load', () => {
-            const splash = document.getElementById('splash-screen');
             setTimeout(() => {
-                splash.style.opacity = '0';
-                setTimeout(() => splash.remove(), 600);
-            }, 1500);
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('splash-screen').remove(), 600);
+            }, 2500); // Espera a IA carregar um pouco
 
-            // Observador de estado de autenticação
             auth.onAuthStateChanged((user) => {
                 if (user) {
                     currentUser = user;
-                    document.getElementById('user-display-name').innerText = user.displayName.split(' ')[0]; // Pega só o primeiro nome
-                    loginScreen.classList.add('hidden-screen');
-                    screenMap.classList.remove('hidden-screen');
+                    customDisplayName = user.displayName || "Caçador";
+                    document.getElementById('profile-name').innerText = customDisplayName;
+                    document.getElementById('profile-pic').src = user.photoURL || 'https://via.placeholder.com/150';
+                    
+                    document.getElementById('login-screen').classList.add('hidden-screen');
+                    document.getElementById('main-app').classList.remove('hidden-screen');
+                    
                     if(!map) initMap();
                     fetchArtsFromDatabase();
                 } else {
-                    loginScreen.classList.remove('hidden-screen');
-                    screenMap.classList.add('hidden-screen');
+                    document.getElementById('login-screen').classList.remove('hidden-screen');
+                    document.getElementById('main-app').classList.add('hidden-screen');
                 }
             });
         });
 
         document.getElementById('btn-login').addEventListener('click', () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(err => alert("Erro no login: " + err.message));
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => alert("Erro: " + err.message));
         });
 
         // ==========================================
-        // MAPA E DADOS DO FIRESTORE
+        // NAVEGAÇÃO BOTTOM BAR
+        // ==========================================
+        const views = ['view-map', 'view-feed', 'view-profile'];
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                const targetView = e.target.getAttribute('data-target');
+                views.forEach(v => {
+                    document.getElementById(v).classList.add('hidden-screen');
+                });
+                document.getElementById(targetView).classList.remove('hidden-screen');
+
+                if(targetView === 'view-map') map.invalidateSize();
+                if(targetView === 'view-profile') renderProfileGallery();
+            });
+        });
+
+        // ==========================================
+        // MAPA E FEED
         // ==========================================
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([-23.5505, -46.6333], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition((pos) => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
                     if (!userMarker) {
-                        const userIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#84cc16; width:15px; height:15px; border-radius:50%; box-shadow: 0 0 10px #84cc16; border: 2px solid white;'></div>", iconSize: [15, 15] });
-                        userMarker = L.marker(userCoords, {icon: userIcon, zIndexOffset: 1000}).addTo(map);
+                        const icon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#84cc16; width:15px; height:15px; border-radius:50%; box-shadow: 0 0 10px #84cc16; border: 2px solid white;'></div>", iconSize: [15, 15] });
+                        userMarker = L.marker(userCoords, {icon: icon, zIndexOffset: 1000}).addTo(map);
                         map.setView(userCoords, 16);
                     } else {
                         userMarker.setLatLng(userCoords);
                     }
-                }, (err) => console.error("Erro no GPS:", err), { enableHighAccuracy: true });
+                }, (err) => console.error(err), { enableHighAccuracy: true });
             }
         }
 
-        // Puxa as artes salvas do Firebase
         function fetchArtsFromDatabase() {
-            db.collection("arts").onSnapshot((snapshot) => {
+            db.collection("arts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
                 registeredArts = [];
-                artCounter.innerText = snapshot.size;
+                document.getElementById('art-counter').innerText = snapshot.size;
+                const feedContainer = document.getElementById('feed-container');
+                feedContainer.innerHTML = '';
                 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
+                    const id = doc.id;
+                    if (typeof data.lat !== 'number' || typeof data.lng !== 'number') return;
+                    
+                    registeredArts.push({...data, id});
+                    
+                    // Render Map Pin
+                    const icon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
+                    const safeImage = (typeof data.imageBase64 === 'string' && data.imageBase64.startsWith('data:image/')) ? data.imageBase64 : '';
+                    L.marker([data.lat, data.lng], {icon: icon}).addTo(map).bindPopup(`<b>${escapeHTML(data.nome)}</b><br>Por ${escapeHTML(data.authorName)}`);
 
-                    // Validação básica dos dados vindos do banco antes de usar
-                    if (typeof data.lat !== 'number' || typeof data.lng !== 'number' ||
-                        Math.abs(data.lat) > 90 || Math.abs(data.lng) > 180) {
-                        return; // ignora documento com coordenadas inválidas
-                    }
-
-                    registeredArts.push(data);
-
-                    // Coloca o pino no mapa
-                    const markerIcon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
-
-                    // IMPORTANTE: nome e authorName vêm de outros usuários -> sempre escapar
-                    const safeNome = escapeHTML(data.nome);
-                    const safeAuthor = escapeHTML(data.authorName);
-                    // imageBase64 só é aceito se realmente for uma data URL de imagem
-                    const safeImage = (typeof data.imageBase64 === 'string' && data.imageBase64.startsWith('data:image/'))
-                        ? data.imageBase64
-                        : '';
-
-                    const popupEl = document.createElement('div');
-                    popupEl.innerHTML = `<b>${safeNome}</b><br>Capturado por ${safeAuthor}` +
-                        (safeImage ? `<br><img src="${safeImage}" style="width:100%; margin-top:5px; border-radius:5px;">` : '');
-
-                    L.marker([data.lat, data.lng], {icon: markerIcon})
-                        .addTo(map)
-                        .bindPopup(popupEl);
+                    // Render Feed Card
+                    feedContainer.innerHTML += `
+                        <div class="glass rounded-xl overflow-hidden flex flex-col pb-2">
+                            <div class="p-3 flex items-center justify-between border-b border-gray-800">
+                                <span class="font-bold text-neon-purple text-sm">@${escapeHTML(data.authorName)}</span>
+                                <span class="text-xs text-gray-500">${data.estilo}</span>
+                            </div>
+                            <img src="${safeImage}" class="w-full h-64 object-cover">
+                            <div class="p-3 flex justify-between items-center">
+                                <h3 class="font-black text-lg text-white uppercase">${escapeHTML(data.nome)}</h3>
+                                <button class="text-[#84cc16] font-bold text-sm border border-[#84cc16] px-3 py-1 rounded-full hover:bg-[#84cc16] hover:text-black transition">🔥 Dope</button>
+                            </div>
+                        </div>
+                    `;
                 });
+                
+                if(document.getElementById('view-profile').classList.contains('hidden-screen') === false) {
+                    renderProfileGallery();
+                }
+            });
+        }
+
+        // ==========================================
+        // PERFIL E GALERIA
+        // ==========================================
+        document.getElementById('btn-edit-profile').addEventListener('click', () => {
+            const novoNome = prompt("Novo nome de perfil (máx 15 letras):", customDisplayName);
+            if (novoNome && novoNome.trim().length > 0) {
+                customDisplayName = sanitizeText(novoNome).slice(0, 15);
+                document.getElementById('profile-name').innerText = customDisplayName;
+                // No MVP atualizamos só a variável de display, numa versão robusta faria update na coleção 'users'.
+            }
+        });
+
+        function renderProfileGallery() {
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = '';
+            const myArts = registeredArts.filter(art => art.authorId === currentUser.uid);
+            
+            if(myArts.length === 0) {
+                grid.innerHTML = '<p class="col-span-2 text-center text-gray-500 text-sm mt-4">Nenhuma arte sua no mapa.</p>';
+                return;
+            }
+
+            myArts.forEach(art => {
+                grid.innerHTML += `
+                    <div class="glass rounded-lg overflow-hidden flex flex-col relative aspect-square">
+                        <img src="${art.imageBase64}" class="w-full h-full object-cover">
+                        <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 p-2">
+                            <p class="text-xs font-bold text-white truncate">${escapeHTML(art.nome)}</p>
+                        </div>
+                    </div>
+                `;
             });
         }
 
         // ==========================================
         // CÂMERA E SCANNER
         // ==========================================
-        async function startCamera() {
-            screenMap.classList.add('hidden-screen');
+        const screenScanner = document.getElementById('screen-scanner');
+        const screenCard = document.getElementById('screen-card');
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('camera-canvas');
+
+        document.getElementById('btn-open-scanner').addEventListener('click', async () => {
             screenScanner.classList.remove('hidden-screen');
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
                 video.srcObject = videoStream;
             } catch (err) {
-                alert("Erro na câmera. Use HTTPS.");
-                closeCamera();
+                alert("Erro na câmera.");
+                screenScanner.classList.add('hidden-screen');
             }
-        }
+        });
 
         function closeCamera() {
             if (videoStream) videoStream.getTracks().forEach(track => track.stop());
             screenScanner.classList.add('hidden-screen');
-            screenMap.classList.remove('hidden-screen');
         }
+        
+        document.getElementById('btn-close-scanner').addEventListener('click', closeCamera);
 
-        function takePhoto() {
-            // Desenha no canvas e comprime brutalmente pra caber no Firestore (Qualidade 0.4)
+        document.getElementById('btn-take-photo').addEventListener('click', () => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             pendingBase64Image = canvas.toDataURL('image/jpeg', 0.4); 
             
-            cardImage.src = pendingBase64Image;
+            document.getElementById('card-image').src = pendingBase64Image;
             closeCamera();
-            processHumanFactor();
-        }
-
-        // ==========================================
-        // LÓGICA DO FATOR HUMANO E RARIDADE
-        // ==========================================
-        function processHumanFactor() {
-            screenMap.classList.add('hidden-screen');
+            
             screenCard.classList.remove('hidden-screen');
-            artNameInput.value = ""; 
-            
-            const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural", "Tag"];
+            document.getElementById('art-name-input').value = "";
+            const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural"];
             document.getElementById('card-style').innerText = estilos[Math.floor(Math.random() * estilos.length)];
-            
-            let minDistance = Infinity;
-            
-            if (userCoords && registeredArts.length > 0) {
-                registeredArts.forEach(art => {
-                    const dist = map.distance(userCoords, [art.lat, art.lng]);
-                    if (dist < minDistance) minDistance = dist;
-                });
-            }
+        });
 
-            let raridade, cor, exploTexto;
-
-            if (registeredArts.length === 0 || minDistance > 50) {
-                raridade = "Lendária"; cor = "text-neon-purple"; exploTexto = "Área Virgem (Primeira Descoberta!)";
-            } else if (minDistance > 20) {
-                raridade = "Épica"; cor = "text-yellow-400"; exploTexto = "Pouco Mapeada (Bônus de Busca)";
-            } else if (minDistance > 5) {
-                raridade = "Rara"; cor = "text-blue-400"; exploTexto = "Local Conhecido";
-            } else {
-                raridade = "Comum"; cor = "text-gray-400"; exploTexto = "Pico Saturado (Muitos Scans)";
-            }
-
-            document.getElementById('card-exploration').innerText = exploTexto;
-            const elRarity = document.getElementById('card-rarity');
-            elRarity.innerText = raridade;
-            elRarity.className = `font-bold ${cor}`;
-        }
+        document.getElementById('btn-cancel-card').addEventListener('click', () => {
+            screenCard.classList.add('hidden-screen');
+            pendingBase64Image = "";
+        });
 
         // ==========================================
-        // SALVAR NO FIRESTORE
+        // IA E SALVAMENTO NO FIRESTORE
         // ==========================================
-        function saveCardToMap() {
+        document.getElementById('btn-save-card').addEventListener('click', async () => {
             if (!userCoords || !currentUser) return;
             
             const btnText = document.getElementById('save-btn-text');
-            btnText.innerText = "Salvando...";
-            
-            const artName = sanitizeArtName(artNameInput.value);
-            const artStyle = document.getElementById('card-style').innerText;
-            const artRarity = document.getElementById('card-rarity').innerText;
+            btnText.innerText = "Analisando Imagem...";
+            const imgElement = document.getElementById('card-image');
 
-            // Sanidade básica antes de gravar (o backend/regras do Firestore
-            // também precisam validar isso — nunca confie só no cliente)
-            if (!pendingBase64Image.startsWith('data:image/')) {
-                alert("Imagem inválida. Tente escanear novamente.");
-                btnText.innerText = "Registrar no Mapa";
-                return;
+            // Filtro Anti-NSFW
+            if (nsfwModel) {
+                try {
+                    const predictions = await nsfwModel.classify(imgElement);
+                    const isIndecent = predictions.some(p => (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.6);
+                    if (isIndecent) {
+                        alert("IMAGEM BLOQUEADA: Conteúdo explícito detectado. Foque nas ruas.");
+                        btnText.innerText = "Analisar e Salvar";
+                        screenCard.classList.add('hidden-screen');
+                        return;
+                    }
+                } catch(e) {
+                    console.log("Erro na IA, prosseguindo salvamento...");
+                }
             }
 
-            // Objeto pra mandar pro banco
+            btnText.innerText = "Salvando...";
             const newArt = {
-                nome: artName,
-                estilo: artStyle,
-                raridade: artRarity,
+                nome: sanitizeText(document.getElementById('art-name-input').value),
+                estilo: document.getElementById('card-style').innerText,
+                raridade: document.getElementById('card-rarity').innerText,
                 lat: userCoords[0],
                 lng: userCoords[1],
                 imageBase64: pendingBase64Image,
                 authorId: currentUser.uid,
-                authorName: sanitizeArtName(currentUser.displayName || "Anônimo"),
+                authorName: customDisplayName,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            db.collection("arts").add(newArt)
-            .then(() => {
-                btnText.innerText = "Registrar no Mapa";
+            db.collection("arts").add(newArt).then(() => {
+                btnText.innerText = "Analisar e Salvar";
                 screenCard.classList.add('hidden-screen');
-                screenMap.classList.remove('hidden-screen');
-            })
-            .catch(error => {
+            }).catch(error => {
                 alert("Erro ao salvar: " + error.message);
-                btnText.innerText = "Registrar no Mapa";
+                btnText.innerText = "Analisar e Salvar";
             });
-        }
-
-        // Eventos
-        document.getElementById('btn-open-scanner').addEventListener('click', startCamera);
-        document.getElementById('btn-close-scanner').addEventListener('click', closeCamera);
-        document.getElementById('btn-take-photo').addEventListener('click', takePhoto);
-        document.getElementById('btn-save-card').addEventListener('click', saveCardToMap);
+        });
     </script>
 </body>
 </html>
