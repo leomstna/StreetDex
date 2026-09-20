@@ -1,464 +1,545 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0a0a0a">
-    
-    <title>StreetDex MVP</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-    <!-- TensorFlow & NSFWJS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.7.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.3.0/dist/nsfwjs.min.js"></script>
-
-    <style>
-        body, html { 
-            margin: 0; padding: 0; height: 100%; 
-            background-color: #0a0a0a; color: white; 
-            overflow: hidden; font-family: sans-serif;
-            overscroll-behavior-y: none; 
-            -webkit-user-select: none; 
-            user-select: none;
-        }
-        
-        .hidden-screen { display: none !important; }
-        
-        .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .neon-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.6); border-color: #a855f7; }
-        .neon-green { box-shadow: 0 0 15px rgba(132, 204, 22, 0.6); border-color: #84cc16; }
-        .text-neon-purple { text-shadow: 0 0 12px rgba(168, 85, 247, 0.9); color: #c084fc; }
-        .text-neon-green { text-shadow: 0 0 8px rgba(132, 204, 22, 0.8); color: #a3e635; }
-        
-        #map { width: 100%; height: 100%; z-index: 1; }
-        .ui-layer { z-index: 10; position: absolute; }
-        .leaflet-layer { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
-        
-        #splash-screen { z-index: 9999; transition: opacity 0.6s ease-out, transform 0.8s ease-in; }
-        #login-screen { z-index: 9998; }
-        .splash-glitch { animation: pulse-neon 1.5s infinite alternate; }
-
-        @keyframes pulse-neon {
-            0% { text-shadow: 0 0 5px #a855f7, 0 0 10px #a855f7; transform: scale(1); }
-            100% { text-shadow: 0 0 20px #a855f7, 0 0 40px #a855f7; transform: scale(1.02); }
-        }
-
-        /* Nav Bar Bottom */
-        .bottom-nav { z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-item { display: flex; flex-direction: column; items-center; justify-content: center; color: #6b7280; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; transition: color 0.2s;}
-        .nav-item.active { color: #a3e635; text-shadow: 0 0 8px rgba(132, 204, 22, 0.8); }
-        .scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>StreetDex MVP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+<!-- TensorFlow & NSFWJS -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.7.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.3.0/dist/nsfwjs.min.js"></script>
+<style>
+body, html {
+  margin: 0; padding: 0; height: 100%;
+  background-color: #0a0a0a; color: white;
+  overflow: hidden; font-family: sans-serif;
+  overscroll-behavior-y: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.hidden-screen { display: none !important; }
+.glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+.neon-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.6); border-color: #a855f7; }
+.neon-green { box-shadow: 0 0 15px rgba(132, 204, 22, 0.6); border-color: #84cc16; }
+.text-neon-purple { text-shadow: 0 0 12px rgba(168, 85, 247, 0.9); color: #c084fc; }
+.text-neon-green { text-shadow: 0 0 8px rgba(132, 204, 22, 0.8); color: #a3e635; }
+#map { width: 100%; height: 100%; z-index: 1; }
+.ui-layer { z-index: 10; position: absolute; }
+.leaflet-layer { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+#splash-screen { z-index: 9999; transition: opacity 0.6s ease-out, transform 0.8s ease-in; }
+#login-screen { z-index: 9998; }
+.splash-glitch { animation: pulse-neon 1.5s infinite alternate; }
+@keyframes pulse-neon {
+  0% { text-shadow: 0 0 5px #a855f7, 0 0 10px #a855f7; transform: scale(1); }
+  100% { text-shadow: 0 0 20px #a855f7, 0 0 40px #a855f7; transform: scale(1.02); }
+}
+.bottom-nav { z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
+.nav-item { display: flex; flex-direction: column; items-center; justify-content: center; color: #6b7280; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; transition: color 0.2s;}
+.nav-item.active { color: #a3e635; text-shadow: 0 0 8px rgba(132, 204, 22, 0.8); }
+.scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+</style>
 </head>
 <body>
 
-    <!-- TELA ZERO: SPLASH -->
-    <div id="splash-screen" class="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
-        <h1 class="text-5xl font-black tracking-[0.2em] text-neon-purple splash-glitch">STREETDEX</h1>
-        <p id="splash-text" class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">SINTONIZANDO SATÉLITES...</p>
+<!-- TELA ZERO: SPLASH -->
+<div id="splash-screen" class="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
+  <h1 class="text-5xl font-black tracking-[0.2em] text-neon-purple splash-glitch">STREETDEX</h1>
+  <p id="splash-text" class="text-[#84cc16] mt-4 font-mono text-sm tracking-widest opacity-70">SINTONIZANDO SATÉLITES...</p>
+</div>
+
+<!-- TELA LOGIN -->
+<div id="login-screen" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
+  <h1 class="text-4xl font-black tracking-[0.2em] text-neon-purple mb-8">STREETDEX</h1>
+  <p class="text-gray-400 mb-10 text-sm">Identifique-se para acessar a rede urbana.</p>
+  <button id="btn-login" class="glass neon-green text-white font-bold py-4 px-8 rounded-full uppercase tracking-wider active:scale-95 transition-transform w-full max-w-xs flex items-center justify-center gap-3">
+    Entrar com Google
+  </button>
+</div>
+
+<!-- MAIN APP CONTAINER -->
+<div id="main-app" class="hidden-screen w-full h-full relative flex flex-col">
+  <div class="flex-1 relative overflow-hidden">
+
+    <!-- VIEW: MAPA -->
+    <div id="view-map" class="w-full h-full absolute inset-0">
+      <div id="map"></div>
+      <div class="ui-layer top-8 left-4 right-4 flex justify-between items-center glass rounded-xl p-3">
+        <div><h1 class="text-xl font-bold tracking-wider text-neon-purple">STREETDEX</h1></div>
+        <div class="text-right"><p class="text-sm font-bold">Total: <span id="art-counter">0</span></p></div>
+      </div>
     </div>
 
-    <!-- TELA LOGIN -->
-    <div id="login-screen" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-4xl font-black tracking-[0.2em] text-neon-purple mb-8">STREETDEX</h1>
-        <p class="text-gray-400 mb-10 text-sm">Identifique-se para acessar a rede urbana.</p>
-        <button id="btn-login" class="glass neon-green text-white font-bold py-4 px-8 rounded-full uppercase tracking-wider active:scale-95 transition-transform w-full max-w-xs flex items-center justify-center gap-3">
-            Entrar com Google
-        </button>
+    <!-- VIEW: FEED GLOBAL -->
+    <div id="view-feed" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
+      <h2 class="text-2xl font-black text-neon-purple uppercase mt-8 mb-4 tracking-widest text-center">Feed Global</h2>
+      <div id="feed-container" class="flex flex-col gap-6"></div>
+      <button id="btn-load-more" class="hidden-screen w-full mt-2 glass rounded-xl py-3 text-sm font-bold text-neon-green uppercase">Carregar mais</button>
     </div>
 
-    <!-- MAIN APP CONTAINER (Com Nav Bar) -->
-    <div id="main-app" class="hidden-screen w-full h-full relative flex flex-col">
-        
-        <!-- VIEWS -->
-        <div class="flex-1 relative overflow-hidden">
-            
-            <!-- VIEW: MAPA -->
-            <div id="view-map" class="w-full h-full absolute inset-0">
-                <div id="map"></div>
-                <div class="ui-layer top-8 left-4 right-4 flex justify-between items-center glass rounded-xl p-3">
-                    <div>
-                        <h1 class="text-xl font-bold tracking-wider text-neon-purple">STREETDEX</h1>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold">Total: <span id="art-counter">0</span></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: FEED GLOBAL -->
-            <div id="view-feed" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
-                <h2 class="text-2xl font-black text-neon-purple uppercase mt-8 mb-4 tracking-widest text-center">Feed Global</h2>
-                <div id="feed-container" class="flex flex-col gap-6">
-                    <!-- Cards injetados via JS -->
-                </div>
-            </div>
-
-            <!-- VIEW: PERFIL / GALERIA -->
-            <div id="view-profile" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
-                <div class="flex flex-col items-center mt-10 mb-8">
-                    <div class="w-24 h-24 rounded-full bg-gray-800 border-2 border-[#a855f7] neon-purple mb-4 overflow-hidden">
-                        <img id="profile-pic" src="" alt="Avatar" class="w-full h-full object-cover">
-                    </div>
-                    <h2 id="profile-name" class="text-2xl font-black text-white uppercase tracking-wide">Hunter</h2>
-                    <button id="btn-edit-profile" class="mt-2 text-xs text-gray-400 underline uppercase">Editar Nome</button>
-                </div>
-                
-                <h3 class="text-lg font-bold text-neon-green border-b border-gray-800 pb-2 mb-4">Minhas Artes</h3>
-                <div id="gallery-grid" class="grid grid-cols-2 gap-3">
-                    <!-- Galeria injetada via JS -->
-                </div>
-            </div>
-
+    <!-- VIEW: PERFIL / GALERIA -->
+    <div id="view-profile" class="hidden-screen w-full h-full absolute inset-0 bg-[#0a0a0a] scrollable p-4 pb-24">
+      <div class="flex flex-col items-center mt-10 mb-8">
+        <div class="w-24 h-24 rounded-full bg-gray-800 border-2 border-[#a855f7] neon-purple mb-4 overflow-hidden">
+          <img id="profile-pic" src="" alt="Avatar" class="w-full h-full object-cover">
         </div>
-
-        <!-- BOTAO FLUTUANTE ESCANEAR -->
-        <button id="btn-open-scanner" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#0a0a0a] border-4 border-[#84cc16] neon-green text-white font-bold w-16 h-16 rounded-full flex items-center justify-center text-3xl pb-1 z-40 active:scale-90 transition-transform">
-            +
-        </button>
-
-        <!-- BOTTOM NAV BAR -->
-        <div class="bottom-nav w-full h-16 glass border-t border-gray-800 flex justify-around items-center px-2 z-50">
-            <button class="nav-item active flex-1 py-2" data-target="view-map">Mapa</button>
-            <button class="nav-item flex-1 py-2" data-target="view-feed">Feed</button>
-            <div class="w-16"></div> <!-- Espaço pro botão central -->
-            <button class="nav-item flex-1 py-2" data-target="view-profile">Perfil</button>
-        </div>
+        <h2 id="profile-name" class="text-2xl font-black text-white uppercase tracking-wide">Hunter</h2>
+        <button id="btn-edit-profile" class="mt-2 text-xs text-gray-400 underline uppercase">Editar Nome</button>
+      </div>
+      <h3 class="text-lg font-bold text-neon-green border-b border-gray-800 pb-2 mb-4">Minhas Artes</h3>
+      <div id="gallery-grid" class="grid grid-cols-2 gap-3"></div>
     </div>
+  </div>
 
-    <!-- TELA: SCANNER CÂMERA -->
-    <div id="screen-scanner" class="hidden-screen fixed inset-0 bg-black z-[9999]">
-        <video id="camera-feed" class="w-full h-full object-cover" autoplay playsinline></video>
-        <canvas id="camera-canvas" class="hidden"></canvas>
-        <div class="ui-layer top-0 left-0 w-full h-full pointer-events-none border-8 border-transparent box-border" style="border-image: linear-gradient(to bottom, #a855f7, transparent) 1;"></div>
-        <div class="ui-layer top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed border-[#84cc16] pointer-events-none opacity-50"></div>
-        <button id="btn-close-scanner" class="ui-layer top-10 left-6 glass rounded-full w-12 h-12 flex items-center justify-center font-bold text-2xl pb-1">&times;</button>
-        <div class="ui-layer bottom-12 left-0 right-0 flex justify-center">
-            <button id="btn-take-photo" class="w-20 h-20 bg-white rounded-full border-4 border-[#84cc16] neon-green active:scale-90 transition-transform"></button>
-        </div>
+  <button id="btn-open-scanner" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#0a0a0a] border-4 border-[#84cc16] neon-green text-white font-bold w-16 h-16 rounded-full flex items-center justify-center text-3xl pb-1 z-40 active:scale-90 transition-transform">+</button>
+
+  <div class="bottom-nav w-full h-16 glass border-t border-gray-800 flex justify-around items-center px-2 z-50">
+    <button class="nav-item active flex-1 py-2" data-target="view-map">Mapa</button>
+    <button class="nav-item flex-1 py-2" data-target="view-feed">Feed</button>
+    <div class="w-16"></div>
+    <button class="nav-item flex-1 py-2" data-target="view-profile">Perfil</button>
+  </div>
+</div>
+
+<!-- TELA: SCANNER CÂMERA -->
+<div id="screen-scanner" class="hidden-screen fixed inset-0 bg-black z-[9999]">
+  <video id="camera-feed" class="w-full h-full object-cover" autoplay playsinline></video>
+  <canvas id="camera-canvas" class="hidden"></canvas>
+  <div class="ui-layer top-0 left-0 w-full h-full pointer-events-none border-8 border-transparent box-border" style="border-image: linear-gradient(to bottom, #a855f7, transparent) 1;"></div>
+  <div class="ui-layer top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed border-[#84cc16] pointer-events-none opacity-50"></div>
+  <button id="btn-close-scanner" class="ui-layer top-10 left-6 glass rounded-full w-12 h-12 flex items-center justify-center font-bold text-2xl pb-1">&times;</button>
+  <div class="ui-layer bottom-12 left-0 right-0 flex justify-center">
+    <button id="btn-take-photo" class="w-20 h-20 bg-white rounded-full border-4 border-[#84cc16] neon-green active:scale-90 transition-transform"></button>
+  </div>
+</div>
+
+<!-- TELA: RESULTADO (CARTA) -->
+<div id="screen-card" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 z-[9999]">
+  <div class="glass neon-purple rounded-2xl w-full max-w-sm overflow-hidden flex flex-col mt-4">
+    <div class="h-64 w-full bg-gray-800 relative">
+      <img id="card-image" src="" class="w-full h-full object-cover" crossorigin="anonymous" />
+      <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">NOVA ARTE</div>
     </div>
-
-    <!-- TELA: RESULTADO (CARTA) -->
-    <div id="screen-card" class="hidden-screen fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 z-[9999]">
-        <div class="glass neon-purple rounded-2xl w-full max-w-sm overflow-hidden flex flex-col mt-4">
-            <div class="h-64 w-full bg-gray-800 relative">
-                <img id="card-image" src="" class="w-full h-full object-cover" crossorigin="anonymous" />
-                <div class="absolute top-2 right-2 glass px-3 py-1 rounded-full text-xs font-bold text-neon-green">NOVA ARTE</div>
-            </div>
-            <div class="p-5 flex flex-col gap-3">
-                <input type="text" id="art-name-input" placeholder="NOMEIE A ARTE..." maxlength="40" class="w-full bg-transparent border-b-2 border-gray-600 focus:border-[#a855f7] text-white outline-none py-2 text-xl font-black text-center uppercase tracking-wide placeholder-gray-600">
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2 mt-2">
-                    <span class="text-gray-400 text-sm">Estilo</span>
-                    <span id="card-style" class="font-bold text-neon-purple">Pixo</span>
-                </div>
-                <div class="flex justify-between items-center pb-2">
-                    <span class="text-gray-400 text-sm">Raridade</span>
-                    <span id="card-rarity" class="font-bold text-yellow-400">Épica</span>
-                </div>
-            </div>
-        </div>
-        <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform flex items-center justify-center">
-            <span id="save-btn-text">Analisar e Salvar</span>
-        </button>
-        <button id="btn-cancel-card" class="mt-4 text-gray-500 underline text-sm uppercase">Descartar</button>
+    <div class="p-5 flex flex-col gap-3">
+      <input type="text" id="art-name-input" placeholder="NOMEIE A ARTE..." maxlength="40" class="w-full bg-transparent border-b-2 border-gray-600 focus:border-[#a855f7] text-white outline-none py-2 text-xl font-black text-center uppercase tracking-wide placeholder-gray-600">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-2 mt-2">
+        <span class="text-gray-400 text-sm">Estilo</span>
+        <span id="card-style" class="font-bold text-neon-purple">Pixo</span>
+      </div>
+      <div class="flex justify-between items-center pb-2">
+        <span class="text-gray-400 text-sm">Raridade</span>
+        <span id="card-rarity" class="font-bold text-yellow-400">Comum</span>
+      </div>
     </div>
+  </div>
+  <button id="btn-save-card" class="mt-8 glass neon-green text-white font-bold py-3 px-10 rounded-full uppercase tracking-wider active:scale-95 transition-transform flex items-center justify-center">
+    <span id="save-btn-text">Analisar e Salvar</span>
+  </button>
+  <button id="btn-cancel-card" class="mt-4 text-gray-500 underline text-sm uppercase">Descartar</button>
+</div>
 
-    <script>
-        // ==========================================
-        // CONFIGURAÇÃO FIREBASE (SUAS CHAVES)
-        // ==========================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyARte5ndyTFJoWysfeCguX75cjyyBN7Kx4",
-            authDomain: "streetdex-mvp.firebaseapp.com",
-            projectId: "streetdex-mvp",
-            storageBucket: "streetdex-mvp.firebasestorage.app",
-            messagingSenderId: "547402311678",
-            appId: "1:547402311678:web:a9d444190123a55db502af"
-        };
+<script>
+// ==========================================
+// CONFIGURAÇÃO FIREBASE
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyARte5ndyTFJoWysfeCguX75cjyyBN7Kx4",
+  authDomain: "streetdex-mvp.firebaseapp.com",
+  projectId: "streetdex-mvp",
+  storageBucket: "streetdex-mvp.firebasestorage.app",
+  messagingSenderId: "547402311678",
+  appId: "1:547402311678:web:a9d444190123a55db502af"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+/* ==========================================
+   FIRESTORE SECURITY RULES (cole isso no console do Firebase,
+   em Firestore Database > Regras — NÃO fica no client):
 
-        // ==========================================
-        // VARIÁVEIS GLOBAIS E IA
-        // ==========================================
-        let map, userMarker, userCoords;
-        let videoStream;
-        let registeredArts = []; 
-        let currentUser = null;
-        let pendingBase64Image = "";
-        let nsfwModel = null;
-        let customDisplayName = "";
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /arts/{artId} {
+         allow read: if true;
+         allow create: if request.auth != null
+           && request.resource.data.authorId == request.auth.uid
+           && request.resource.data.nome is string
+           && request.resource.data.nome.size() <= 40
+           && request.resource.data.lat is number
+           && request.resource.data.lng is number
+           && request.resource.data.imageUrl is string;
+         allow update, delete: if request.auth != null
+           && resource.data.authorId == request.auth.uid;
+       }
+     }
+   }
 
-        // Carregar IA Anti-NSFW
-        nsfwjs.load().then(model => {
-            nsfwModel = model;
-            document.getElementById('splash-text').innerText = "IA DE MODERAÇÃO PRONTA.";
-        });
+   STORAGE SECURITY RULES (em Storage > Regras):
 
-        // Utilidades de Segurança (Anti-XSS)
-        function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.textContent = String(str ?? "");
-            return div.innerHTML;
-        }
+   rules_version = '2';
+   service firebase.storage {
+     match /b/{bucket}/o {
+       match /arts/{userId}/{fileName} {
+         allow read: if true;
+         allow write: if request.auth != null
+           && request.auth.uid == userId
+           && request.resource.size < 5 * 1024 * 1024
+           && request.resource.contentType.matches('image/.*');
+       }
+     }
+   }
 
-        function sanitizeText(raw) {
-            return String(raw || "").replace(/[\u0000-\u001F\u007F<>]/g, "").trim().slice(0, 40) || "Desconhecido";
-        }
+   A moderação NSFW abaixo é só UX (client-side pode ser burlado).
+   Pra ela virar uma barreira de segurança de verdade, replique a
+   checagem numa Cloud Function (ex: onFinalize do Storage) que
+   apaga o arquivo/documento se reprovar.
+========================================== */
 
-        // ==========================================
-        // LOGIN E INICIALIZAÇÃO
-        // ==========================================
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('splash-screen').style.opacity = '0';
-                setTimeout(() => document.getElementById('splash-screen').remove(), 600);
-            }, 2500); // Espera a IA carregar um pouco
+// ==========================================
+// VARIÁVEIS GLOBAIS E IA
+// ==========================================
+let map, userMarker, userCoords;
+let videoStream;
+let geoWatchId = null;
+let registeredArts = [];
+let currentUser = null;
+let pendingBlob = null;
+let nsfwModel = null;
+let customDisplayName = "";
+let lastVisibleDoc = null;
+const PAGE_SIZE = 30;
 
-            auth.onAuthStateChanged((user) => {
-                if (user) {
-                    currentUser = user;
-                    customDisplayName = user.displayName || "Caçador";
-                    document.getElementById('profile-name').innerText = customDisplayName;
-                    document.getElementById('profile-pic').src = user.photoURL || 'https://via.placeholder.com/150';
-                    
-                    document.getElementById('login-screen').classList.add('hidden-screen');
-                    document.getElementById('main-app').classList.remove('hidden-screen');
-                    
-                    if(!map) initMap();
-                    fetchArtsFromDatabase();
-                } else {
-                    document.getElementById('login-screen').classList.remove('hidden-screen');
-                    document.getElementById('main-app').classList.add('hidden-screen');
-                }
-            });
-        });
+nsfwjs.load().then(model => {
+  nsfwModel = model;
+  document.getElementById('splash-text').innerText = "IA DE MODERAÇÃO PRONTA.";
+});
 
-        document.getElementById('btn-login').addEventListener('click', () => {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => alert("Erro: " + err.message));
-        });
+// Utilidades de Segurança (Anti-XSS)
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str ?? "");
+  return div.innerHTML;
+}
+function sanitizeText(raw) {
+  return String(raw || "").replace(/[\u0000-\u001F\u007F<>]/g, "").trim().slice(0, 40) || "Desconhecido";
+}
 
-        // ==========================================
-        // NAVEGAÇÃO BOTTOM BAR
-        // ==========================================
-        const views = ['view-map', 'view-feed', 'view-profile'];
-        document.querySelectorAll('.nav-item').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                e.target.classList.add('active');
-                
-                const targetView = e.target.getAttribute('data-target');
-                views.forEach(v => {
-                    document.getElementById(v).classList.add('hidden-screen');
-                });
-                document.getElementById(targetView).classList.remove('hidden-screen');
+// ==========================================
+// LOGIN E INICIALIZAÇÃO
+// ==========================================
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('splash-screen').style.opacity = '0';
+    setTimeout(() => document.getElementById('splash-screen').remove(), 600);
+  }, 2500);
 
-                if(targetView === 'view-map') map.invalidateSize();
-                if(targetView === 'view-profile') renderProfileGallery();
-            });
-        });
+  auth.onAuthStateChanged((user) => {
+    if (user) {
+      currentUser = user;
+      customDisplayName = user.displayName || "Caçador";
+      document.getElementById('profile-name').innerText = customDisplayName;
+      document.getElementById('profile-pic').src = user.photoURL || 'https://via.placeholder.com/150';
+      document.getElementById('login-screen').classList.add('hidden-screen');
+      document.getElementById('main-app').classList.remove('hidden-screen');
+      if (!map) initMap();
+      fetchArtsFromDatabase();
+    } else {
+      document.getElementById('login-screen').classList.remove('hidden-screen');
+      document.getElementById('main-app').classList.add('hidden-screen');
+      stopGeoWatch();
+    }
+  });
+});
 
-        // ==========================================
-        // MAPA E FEED
-        // ==========================================
-        function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([-23.5505, -46.6333], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+document.getElementById('btn-login').addEventListener('click', () => {
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => alert("Erro: " + err.message));
+});
 
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((pos) => {
-                    userCoords = [pos.coords.latitude, pos.coords.longitude];
-                    if (!userMarker) {
-                        const icon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#84cc16; width:15px; height:15px; border-radius:50%; box-shadow: 0 0 10px #84cc16; border: 2px solid white;'></div>", iconSize: [15, 15] });
-                        userMarker = L.marker(userCoords, {icon: icon, zIndexOffset: 1000}).addTo(map);
-                        map.setView(userCoords, 16);
-                    } else {
-                        userMarker.setLatLng(userCoords);
-                    }
-                }, (err) => console.error(err), { enableHighAccuracy: true });
-            }
-        }
+// Para o watchPosition quando a aba fica em background, evitando
+// gasto de bateria/GPS sem necessidade; reativa ao voltar.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopGeoWatch();
+  else if (currentUser) startGeoWatch();
+});
 
-        function fetchArtsFromDatabase() {
-            db.collection("arts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-                registeredArts = [];
-                document.getElementById('art-counter').innerText = snapshot.size;
-                const feedContainer = document.getElementById('feed-container');
-                feedContainer.innerHTML = '';
-                
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const id = doc.id;
-                    if (typeof data.lat !== 'number' || typeof data.lng !== 'number') return;
-                    
-                    registeredArts.push({...data, id});
-                    
-                    // Render Map Pin
-                    const icon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
-                    const safeImage = (typeof data.imageBase64 === 'string' && data.imageBase64.startsWith('data:image/')) ? data.imageBase64 : '';
-                    L.marker([data.lat, data.lng], {icon: icon}).addTo(map).bindPopup(`<b>${escapeHTML(data.nome)}</b><br>Por ${escapeHTML(data.authorName)}`);
+// ==========================================
+// NAVEGAÇÃO BOTTOM BAR
+// ==========================================
+const views = ['view-map', 'view-feed', 'view-profile'];
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    e.target.classList.add('active');
+    const targetView = e.target.getAttribute('data-target');
+    views.forEach(v => document.getElementById(v).classList.add('hidden-screen'));
+    document.getElementById(targetView).classList.remove('hidden-screen');
+    if (targetView === 'view-map') map.invalidateSize();
+    if (targetView === 'view-profile') renderProfileGallery();
+  });
+});
 
-                    // Render Feed Card
-                    feedContainer.innerHTML += `
-                        <div class="glass rounded-xl overflow-hidden flex flex-col pb-2">
-                            <div class="p-3 flex items-center justify-between border-b border-gray-800">
-                                <span class="font-bold text-neon-purple text-sm">@${escapeHTML(data.authorName)}</span>
-                                <span class="text-xs text-gray-500">${data.estilo}</span>
-                            </div>
-                            <img src="${safeImage}" class="w-full h-64 object-cover">
-                            <div class="p-3 flex justify-between items-center">
-                                <h3 class="font-black text-lg text-white uppercase">${escapeHTML(data.nome)}</h3>
-                                <button class="text-[#84cc16] font-bold text-sm border border-[#84cc16] px-3 py-1 rounded-full hover:bg-[#84cc16] hover:text-black transition">🔥 Dope</button>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                if(document.getElementById('view-profile').classList.contains('hidden-screen') === false) {
-                    renderProfileGallery();
-                }
-            });
-        }
+// ==========================================
+// MAPA E GEOLOCALIZAÇÃO
+// ==========================================
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([-23.5505, -46.6333], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  startGeoWatch();
+}
 
-        // ==========================================
-        // PERFIL E GALERIA
-        // ==========================================
-        document.getElementById('btn-edit-profile').addEventListener('click', () => {
-            const novoNome = prompt("Novo nome de perfil (máx 15 letras):", customDisplayName);
-            if (novoNome && novoNome.trim().length > 0) {
-                customDisplayName = sanitizeText(novoNome).slice(0, 15);
-                document.getElementById('profile-name').innerText = customDisplayName;
-                // No MVP atualizamos só a variável de display, numa versão robusta faria update na coleção 'users'.
-            }
-        });
+function startGeoWatch() {
+  if (geoWatchId !== null || !navigator.geolocation) return;
+  geoWatchId = navigator.geolocation.watchPosition((pos) => {
+    userCoords = [pos.coords.latitude, pos.coords.longitude];
+    if (!userMarker) {
+      const icon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#84cc16; width:15px; height:15px; border-radius:50%; box-shadow: 0 0 10px #84cc16; border: 2px solid white;'></div>", iconSize: [15, 15] });
+      userMarker = L.marker(userCoords, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+      map.setView(userCoords, 16);
+    } else {
+      userMarker.setLatLng(userCoords);
+    }
+  }, (err) => console.error(err), { enableHighAccuracy: true });
+}
 
-        function renderProfileGallery() {
-            const grid = document.getElementById('gallery-grid');
-            grid.innerHTML = '';
-            const myArts = registeredArts.filter(art => art.authorId === currentUser.uid);
-            
-            if(myArts.length === 0) {
-                grid.innerHTML = '<p class="col-span-2 text-center text-gray-500 text-sm mt-4">Nenhuma arte sua no mapa.</p>';
-                return;
-            }
+function stopGeoWatch() {
+  if (geoWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+}
 
-            myArts.forEach(art => {
-                grid.innerHTML += `
-                    <div class="glass rounded-lg overflow-hidden flex flex-col relative aspect-square">
-                        <img src="${art.imageBase64}" class="w-full h-full object-cover">
-                        <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 p-2">
-                            <p class="text-xs font-bold text-white truncate">${escapeHTML(art.nome)}</p>
-                        </div>
-                    </div>
-                `;
-            });
-        }
+// ==========================================
+// FEED (paginado — sem baixar a coleção inteira)
+// Observação: isso ainda não é uma busca geográfica de verdade.
+// Pra "só o que está perto do usuário" (tipo Pokémon GO), o próximo
+// passo é indexar por geohash e consultar por bounding box.
+// ==========================================
+function fetchArtsFromDatabase() {
+  let query = db.collection("arts").orderBy("timestamp", "desc").limit(PAGE_SIZE);
+  query.onSnapshot((snapshot) => {
+    registeredArts = [];
+    const feedContainer = document.getElementById('feed-container');
+    feedContainer.innerHTML = '';
 
-        // ==========================================
-        // CÂMERA E SCANNER
-        // ==========================================
-        const screenScanner = document.getElementById('screen-scanner');
-        const screenCard = document.getElementById('screen-card');
-        const video = document.getElementById('camera-feed');
-        const canvas = document.getElementById('camera-canvas');
+    if (map) {
+      map.eachLayer(layer => {
+        if (layer instanceof L.Marker && layer !== userMarker) map.removeLayer(layer);
+      });
+    }
 
-        document.getElementById('btn-open-scanner').addEventListener('click', async () => {
-            screenScanner.classList.remove('hidden-screen');
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-                video.srcObject = videoStream;
-            } catch (err) {
-                alert("Erro na câmera.");
-                screenScanner.classList.add('hidden-screen');
-            }
-        });
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const id = doc.id;
+      if (typeof data.lat !== 'number' || typeof data.lng !== 'number') return;
+      registeredArts.push({ ...data, id });
 
-        function closeCamera() {
-            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
-            screenScanner.classList.add('hidden-screen');
-        }
-        
-        document.getElementById('btn-close-scanner').addEventListener('click', closeCamera);
+      const icon = L.divIcon({ className: 'art-icon', html: "<div style='background-color:#a855f7; width:20px; height:20px; border-radius:4px; box-shadow: 0 0 10px #a855f7; border: 1px solid white; transform: rotate(45deg);'></div>", iconSize: [20, 20] });
+      const safeImage = (typeof data.imageUrl === 'string' && data.imageUrl.startsWith('https://')) ? data.imageUrl : '';
+      L.marker([data.lat, data.lng], { icon }).addTo(map).bindPopup(`<b>${escapeHTML(data.nome)}</b><br>Por ${escapeHTML(data.authorName)}`);
 
-        document.getElementById('btn-take-photo').addEventListener('click', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            pendingBase64Image = canvas.toDataURL('image/jpeg', 0.4); 
-            
-            document.getElementById('card-image').src = pendingBase64Image;
-            closeCamera();
-            
-            screenCard.classList.remove('hidden-screen');
-            document.getElementById('art-name-input').value = "";
-            const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural"];
-            document.getElementById('card-style').innerText = estilos[Math.floor(Math.random() * estilos.length)];
-        });
+      feedContainer.innerHTML += `
+        <div class="glass rounded-xl overflow-hidden flex flex-col pb-2">
+          <div class="p-3 flex items-center justify-between border-b border-gray-800">
+            <span class="font-bold text-neon-purple text-sm">@${escapeHTML(data.authorName)}</span>
+            <span class="text-xs text-gray-500">${escapeHTML(data.estilo)}</span>
+          </div>
+          <img src="${safeImage}" loading="lazy" class="w-full h-64 object-cover">
+          <div class="p-3 flex justify-between items-center">
+            <h3 class="font-black text-lg text-white uppercase">${escapeHTML(data.nome)}</h3>
+            <button class="text-[#84cc16] font-bold text-sm border border-[#84cc16] px-3 py-1 rounded-full hover:bg-[#84cc16] hover:text-black transition">🔥 Dope</button>
+          </div>
+        </div>`;
+    });
 
-        document.getElementById('btn-cancel-card').addEventListener('click', () => {
-            screenCard.classList.add('hidden-screen');
-            pendingBase64Image = "";
-        });
+    document.getElementById('art-counter').innerText = registeredArts.length;
 
-        // ==========================================
-        // IA E SALVAMENTO NO FIRESTORE
-        // ==========================================
-        document.getElementById('btn-save-card').addEventListener('click', async () => {
-            if (!userCoords || !currentUser) return;
-            
-            const btnText = document.getElementById('save-btn-text');
-            btnText.innerText = "Analisando Imagem...";
-            const imgElement = document.getElementById('card-image');
+    if (document.getElementById('view-profile').classList.contains('hidden-screen') === false) {
+      renderProfileGallery();
+    }
+  }, (err) => {
+    console.error(err);
+    alert("Não foi possível carregar as artes. Verifique sua conexão.");
+  });
+}
 
-            // Filtro Anti-NSFW
-            if (nsfwModel) {
-                try {
-                    const predictions = await nsfwModel.classify(imgElement);
-                    const isIndecent = predictions.some(p => (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.6);
-                    if (isIndecent) {
-                        alert("IMAGEM BLOQUEADA: Conteúdo explícito detectado. Foque nas ruas.");
-                        btnText.innerText = "Analisar e Salvar";
-                        screenCard.classList.add('hidden-screen');
-                        return;
-                    }
-                } catch(e) {
-                    console.log("Erro na IA, prosseguindo salvamento...");
-                }
-            }
+// ==========================================
+// PERFIL E GALERIA
+// ==========================================
+document.getElementById('btn-edit-profile').addEventListener('click', () => {
+  const novoNome = prompt("Novo nome de perfil (máx 15 letras):", customDisplayName);
+  if (novoNome && novoNome.trim().length > 0) {
+    customDisplayName = sanitizeText(novoNome).slice(0, 15);
+    document.getElementById('profile-name').innerText = customDisplayName;
+  }
+});
 
-            btnText.innerText = "Salvando...";
-            const newArt = {
-                nome: sanitizeText(document.getElementById('art-name-input').value),
-                estilo: document.getElementById('card-style').innerText,
-                raridade: document.getElementById('card-rarity').innerText,
-                lat: userCoords[0],
-                lng: userCoords[1],
-                imageBase64: pendingBase64Image,
-                authorId: currentUser.uid,
-                authorName: customDisplayName,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
+function renderProfileGallery() {
+  const grid = document.getElementById('gallery-grid');
+  grid.innerHTML = '';
+  const myArts = registeredArts.filter(art => art.authorId === currentUser.uid);
+  if (myArts.length === 0) {
+    grid.innerHTML = '<p class="col-span-2 text-center text-gray-500 text-sm mt-4">Nenhuma arte sua no mapa.</p>';
+    return;
+  }
+  myArts.forEach(art => {
+    const safeImage = (typeof art.imageUrl === 'string' && art.imageUrl.startsWith('https://')) ? art.imageUrl : '';
+    grid.innerHTML += `
+      <div class="glass rounded-lg overflow-hidden flex flex-col relative aspect-square">
+        <img src="${safeImage}" loading="lazy" class="w-full h-full object-cover">
+        <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 p-2">
+          <p class="text-xs font-bold text-white truncate">${escapeHTML(art.nome)}</p>
+        </div>
+      </div>`;
+  });
+}
 
-            db.collection("arts").add(newArt).then(() => {
-                btnText.innerText = "Analisar e Salvar";
-                screenCard.classList.add('hidden-screen');
-            }).catch(error => {
-                alert("Erro ao salvar: " + error.message);
-                btnText.innerText = "Analisar e Salvar";
-            });
-        });
-    </script>
+// ==========================================
+// CÂMERA E SCANNER
+// ==========================================
+const screenScanner = document.getElementById('screen-scanner');
+const screenCard = document.getElementById('screen-card');
+const video = document.getElementById('camera-feed');
+const canvas = document.getElementById('camera-canvas');
+
+document.getElementById('btn-open-scanner').addEventListener('click', async () => {
+  screenScanner.classList.remove('hidden-screen');
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    video.srcObject = videoStream;
+  } catch (err) {
+    alert("Erro na câmera.");
+    screenScanner.classList.add('hidden-screen');
+  }
+});
+
+function closeCamera() {
+  if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+  screenScanner.classList.add('hidden-screen');
+}
+document.getElementById('btn-close-scanner').addEventListener('click', closeCamera);
+
+// Redimensiona pro lado maior ter no máximo MAX_DIM px antes de
+// comprimir — antes disso a única "compressão" era o quality 0.4
+// do JPEG, então uma foto 4000x3000 de celular ainda ia inteira.
+const MAX_DIM = 1280;
+
+document.getElementById('btn-take-photo').addEventListener('click', () => {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const scale = Math.min(1, MAX_DIM / Math.max(vw, vh));
+  canvas.width = Math.round(vw * scale);
+  canvas.height = Math.round(vh * scale);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  canvas.toBlob((blob) => {
+    pendingBlob = blob;
+    document.getElementById('card-image').src = URL.createObjectURL(blob);
+  }, 'image/jpeg', 0.75);
+
+  closeCamera();
+  screenCard.classList.remove('hidden-screen');
+  document.getElementById('art-name-input').value = "";
+
+  const estilos = ["Wildstyle", "Bomb", "Pixo", "Stencil", "Mural"];
+  document.getElementById('card-style').innerText = estilos[Math.floor(Math.random() * estilos.length)];
+
+  // Raridade sorteada de verdade (antes ficava travada em "Épica" no HTML).
+  const raridades = [
+    { nome: "Comum", peso: 55 },
+    { nome: "Rara", peso: 30 },
+    { nome: "Épica", peso: 12 },
+    { nome: "Lendária", peso: 3 }
+  ];
+  document.getElementById('card-rarity').innerText = sortearRaridade(raridades);
+});
+
+function sortearRaridade(lista) {
+  const total = lista.reduce((soma, r) => soma + r.peso, 0);
+  let roll = Math.random() * total;
+  for (const r of lista) {
+    if (roll < r.peso) return r.nome;
+    roll -= r.peso;
+  }
+  return lista[0].nome;
+}
+
+document.getElementById('btn-cancel-card').addEventListener('click', () => {
+  screenCard.classList.add('hidden-screen');
+  pendingBlob = null;
+});
+
+// ==========================================
+// IA, UPLOAD E SALVAMENTO
+// ==========================================
+document.getElementById('btn-save-card').addEventListener('click', async () => {
+  if (!userCoords || !currentUser || !pendingBlob) return;
+
+  const btnText = document.getElementById('save-btn-text');
+  const btnSave = document.getElementById('btn-save-card');
+  btnSave.disabled = true;
+  btnText.innerText = "Analisando Imagem...";
+
+  const imgElement = document.getElementById('card-image');
+
+  // Filtro Anti-NSFW (aviso de UX — a barreira de verdade tem que
+  // existir também no backend, ver comentário nas Security Rules acima).
+  if (nsfwModel) {
+    try {
+      const predictions = await nsfwModel.classify(imgElement);
+      const isIndecent = predictions.some(p => (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.6);
+      if (isIndecent) {
+        alert("IMAGEM BLOQUEADA: Conteúdo explícito detectado. Foque nas ruas.");
+        btnText.innerText = "Analisar e Salvar";
+        btnSave.disabled = false;
+        screenCard.classList.add('hidden-screen');
+        return;
+      }
+    } catch (e) {
+      console.log("Erro na IA, prosseguindo salvamento...");
+    }
+  }
+
+  try {
+    btnText.innerText = "Enviando imagem...";
+    const fileName = `${Date.now()}.jpg`;
+    const storageRef = storage.ref().child(`arts/${currentUser.uid}/${fileName}`);
+    await storageRef.put(pendingBlob, { contentType: 'image/jpeg' });
+    const imageUrl = await storageRef.getDownloadURL();
+
+    btnText.innerText = "Salvando...";
+    const newArt = {
+      nome: sanitizeText(document.getElementById('art-name-input').value),
+      estilo: document.getElementById('card-style').innerText,
+      raridade: document.getElementById('card-rarity').innerText,
+      lat: userCoords[0],
+      lng: userCoords[1],
+      imageUrl: imageUrl,
+      authorId: currentUser.uid,
+      authorName: customDisplayName,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection("arts").add(newArt);
+    screenCard.classList.add('hidden-screen');
+    pendingBlob = null;
+  } catch (error) {
+    alert("Erro ao salvar: " + error.message);
+  } finally {
+    btnText.innerText = "Analisar e Salvar";
+    btnSave.disabled = false;
+  }
+});
+</script>
 </body>
 </html>
